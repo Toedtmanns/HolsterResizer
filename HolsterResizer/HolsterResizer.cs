@@ -1,24 +1,14 @@
 ﻿using HarmonyLib;
 using MelonLoader;
-using SLZ.Bonelab;
-using SLZ.Interaction;
-using SLZ.Marrow.Data;
-using SLZ.Props;
-using SLZ.Props.Weapons;
-using SLZ.Rig;
-using SLZ.VRMK;
 using System;
 using System.Diagnostics;
-using UnhollowerRuntimeLib;
 using UnityEngine;
-using BoneLib;
-using System.Linq;
-using BoneLib.BoneMenu.Elements;
-using LuxURPEssentials;
-using LabFusion.Network;
-using LabFusion.Representation;
-using LabFusion.Utilities;
-using System.Runtime.Remoting.Messaging;
+using Il2CppSLZ.Marrow;
+using Il2CppSLZ.Bonelab;
+using Il2CppSLZ.VRMK;
+using Il2CppSLZ.Marrow.Data;
+using BoneLib.BoneMenu;
+using LabFusion.Player;
 
 namespace HolsterResizer
 {
@@ -122,18 +112,18 @@ namespace HolsterResizer
         private void InitializeWithFusion()
         {
             // TODO(Toedtmanns): Check if this works in multiplayer
-            MultiplayerHooking.OnLocalPlayerCreated += OnLocalPlayerCreated;
+            LocalPlayer.OnLocalRigCreated += OnLocalPlayerCreated;
         }
 
         private void InitializeWithBonelib()
         {
             // Create the submenu
-            MenuCategory menuCategory = BoneLib.BoneMenu.MenuManager.CreateCategory("Holster Resizer", Color.white);
-            _sizeMultiplierElement = menuCategory.CreateFloatElement("Holster size multiplier", Color.white, SizeMultiplier, 0.05f, 0.05f, 2.0f, OnSizeMultiplierChange);
-            menuCategory.CreateFunctionElement("Reset multiplier", Color.white, OnSizeMultiplierReset);
-            menuCategory.CreateBoolElement("Scale up with Avatar", Color.white, ScaleUp, OnScaleUpChange);
-            menuCategory.CreateBoolElement("Scale down with Avatar", Color.white, ScaleDown, OnScaleDownChange);
-            menuCategory.CreateBoolElement("Scale Bodylog", Color.white, ScaleBodylog, OnScaleBodylogChange);
+            BoneLib.BoneMenu.Page menuCategory = BoneLib.BoneMenu.Page.Root.CreatePage("Holster Resizer", Color.white);
+            _sizeMultiplierElement = menuCategory.CreateFloat("Holster size multiplier", Color.white, SizeMultiplier, 0.05f, 0.05f, 2.0f, OnSizeMultiplierChange);
+            menuCategory.CreateFunction("Reset multiplier", Color.white, OnSizeMultiplierReset);
+            menuCategory.CreateBool("Scale up with Avatar", Color.white, ScaleUp, OnScaleUpChange);
+            menuCategory.CreateBool("Scale down with Avatar", Color.white, ScaleDown, OnScaleDownChange);
+            menuCategory.CreateBool("Scale Bodylog", Color.white, ScaleBodylog, OnScaleBodylogChange);
         }
 
         // Menu callbacks
@@ -145,7 +135,7 @@ namespace HolsterResizer
         private void OnSizeMultiplierReset()
         {
             SizeMultiplier = 1.0f;
-            SizeMultiplierElement.SetValue(SizeMultiplier);
+            SizeMultiplierElement.Value = SizeMultiplier;
             ScaleHolsters(LocalRig, LocalRelativeSize);
         }
         private void OnScaleUpChange(bool scaleUp)
@@ -353,13 +343,14 @@ namespace HolsterResizer
     }
 
     /// <summary>
-    /// This patch fixes the first magazine of a new ammo type being the wrong size
+    /// This patch fixes the first magazine of a new ammo type being the wrong size TODO this is still broken, IDK how to fix it. System.ArgumentException: Undefined target method for patch method static void HolsterResizer.OnSpawnMagPatch::Postfix(Il2CppSLZ.Marrow.Magazine __instance)
     /// </summary>
-    [HarmonyPatch(typeof(Magazine), nameof(Magazine.OnSpawn))]
+    [HarmonyPatch(typeof(Magazine), nameof(Magazine.OnPoolSpawn))]
     public static class OnSpawnMagPatch
     {
-        public static void Postfix(Magazine __instance, GameObject go)
+        public static void Postfix(Magazine __instance)
         {
+            GameObject go = __instance._poolee.gameObject;
             Vector3 unitVec = new Vector3(1, 1, 1);
             HolsterResizer.DbgLog($"Spawned mag: {go.name}");
             go.GetComponent<Transform>().localScale = unitVec;
